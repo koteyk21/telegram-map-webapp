@@ -90,11 +90,15 @@
                     updateSelection(geoObject);
                 });
 
-                // Создаем перемещаемую метку
+                // Создаем перемещаемую метку с улучшенной видимостью
                 placemark = new ymaps.Placemark(map.getCenter(), {}, {
                     draggable: true,
-                    preset: 'islands#redDotIcon',
-                    iconColor: '#0088cc'
+                    preset: 'islands#blueDotIcon',
+                    iconColor: '#0088cc',
+                    iconLayout: 'default#imageWithContent',
+                    iconImageHref: 'https://yastatic.net/s3/mapsapi-ru/static/2.1.0/images/icon.png',
+                    iconImageSize: [32, 32],
+                    iconImageOffset: [-16, -32]
                 });
                 map.geoObjects.add(placemark);
 
@@ -133,7 +137,10 @@
 
         // Обновление адреса по координатам
         function updateAddress(coords) {
-            ymaps.geocode(coords, { results: 1 }).then(function(res) {
+            ymaps.geocode(coords, { 
+                kind: 'house',
+                results: 1
+            }).then(function(res) {
                 const firstGeoObject = res.geoObjects.get(0);
                 
                 if (!firstGeoObject) {
@@ -173,26 +180,26 @@
             addressDisplay.textContent = "Адрес не определен";
         }
 
-        // Обработчик кнопки подтверждения
+        // Обработчик кнопки подтверждения - ГАРАНТИРОВАННАЯ ПЕРЕДАЧА АДРЕСА
         confirmBtn.addEventListener('click', function() {
             if (!selectedAddress || !selectedCoords) {
                 alert("Пожалуйста, выберите место на карте");
                 return;
             }
 
-            // Формируем объект данных
+            // Формируем надежный объект данных
             const response = {
-                address: selectedAddress,
-                coords: selectedCoords,
-                timestamp: new Date().getTime(),
-                source: "webapp_map_selector"
+                webapp_data: {
+                    address: selectedAddress,
+                    latitude: selectedCoords[0],
+                    longitude: selectedCoords[1],
+                    timestamp: new Date().getTime()
+                }
             };
 
-            // Логируем перед отправкой
-            console.log("Отправляемые данные в бота:", response);
+            console.log("Отправка данных в бота:", response);
 
             try {
-                // Отправляем как строку JSON
                 Telegram.WebApp.sendData(JSON.stringify(response));
                 Telegram.WebApp.close();
             } catch (e) {
