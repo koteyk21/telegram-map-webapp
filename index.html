@@ -173,23 +173,35 @@
             addressDisplay.textContent = "Адрес не определен";
         }
 
-        // Кнопка подтверждения
-    confirmBtn.addEventListener('click', function() {
-    if (selectedAddress && selectedCoords) {
-        const response = {
-            address: selectedAddress,
-            coords: selectedCoords,
-            timestamp: new Date().getTime()
-        };
-        console.log("Sending data:", response); // Для отладки
-        Telegram.WebApp.sendData(JSON.stringify(response));
-        Telegram.WebApp.close();
-    } else {
-        alert("Пожалуйста, выберите адрес на карте");
-    }
-});
+        // Обработчик кнопки подтверждения
+        confirmBtn.addEventListener('click', function() {
+            if (!selectedAddress || !selectedCoords) {
+                alert("Пожалуйста, выберите место на карте");
+                return;
+            }
 
-        // Кнопка ручного ввода
+            // Формируем объект данных
+            const response = {
+                address: selectedAddress,
+                coords: selectedCoords,
+                timestamp: new Date().getTime(),
+                source: "webapp_map_selector"
+            };
+
+            // Логируем перед отправкой
+            console.log("Отправляемые данные в бота:", response);
+
+            try {
+                // Отправляем как строку JSON
+                Telegram.WebApp.sendData(JSON.stringify(response));
+                Telegram.WebApp.close();
+            } catch (e) {
+                console.error("Ошибка отправки данных:", e);
+                alert("Ошибка отправки данных. Пожалуйста, попробуйте снова.");
+            }
+        });
+
+        // Обработчик кнопки ручного ввода
         manualBtn.addEventListener('click', function() {
             Telegram.WebApp.sendData(JSON.stringify({
                 manual_input: true
