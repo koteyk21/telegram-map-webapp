@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Выбор адреса</title>
-    <script src="https://api-maps.yandex.ru/2.1/?apikey=01b59b25-bd16-4a5e-a739-434e648c9cf4&lang=ru_RU" type="text/javascript"></script>
+    <script src="https://api-maps.yandex.ru/2.1/?apikey=ВАШ_API_КЛЮЧ&lang=ru_RU" type="text/javascript"></script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body, html { margin: 0; padding: 0; height: 100%; }
@@ -27,12 +27,12 @@
     <button id="confirm-btn">✅ Подтвердить адрес</button>
 
     <script>
-        // Показываем индикатор загрузки
         Telegram.WebApp.MainButton.showProgress();
         Telegram.WebApp.expand();
 
         let selectedAddress = "";
         let selectedCoords = null;
+        let placemark = null; // Добавляем переменную для метки
         const errorEl = document.getElementById('error');
         const confirmBtn = document.getElementById('confirm-btn');
 
@@ -49,30 +49,28 @@
                     zoom: 12
                 });
 
-                // Поиск по карте
-                const searchControl = new ymaps.control.SearchControl({
-                    options: { provider: 'yandex#search' }
+                // Создаем метку по умолчанию
+                placemark = new ymaps.Placemark(map.getCenter(), {}, {
+                    draggable: true,
+                    preset: 'islands#redDotIcon'
                 });
-                map.controls.add(searchControl);
+                map.geoObjects.add(placemark);
 
-                // Определение местоположения пользователя
-                if (navigator.geolocation) {
-                    navigator.geolocation.getCurrentPosition(
-                        position => {
-                            map.setCenter([position.coords.latitude, position.coords.longitude]);
-                            map.setZoom(15);
-                        },
-                        error => {
-                            console.warn('Geolocation error:', error);
-                        }
-                    );
-                }
+                // Обновляем координаты при перемещении метки
+                placemark.events.add('dragend', function () {
+                    updateAddress(placemark.geometry.getCoordinates());
+                });
 
-                // Обработка выбора места
+                // Обработка клика по карте - перемещаем метку
                 map.events.add('click', function (e) {
                     const coords = e.get('coords');
-                    selectedCoords = coords;
+                    placemark.geometry.setCoordinates(coords);
+                    updateAddress(coords);
+                });
 
+                // Функция обновления адреса
+                function updateAddress(coords) {
+                    selectedCoords = coords;
                     ymaps.geocode(coords).then(function (res) {
                         const firstGeoObject = res.geoObjects.get(0);
                         selectedAddress = firstGeoObject.getAddressLine();
@@ -82,7 +80,23 @@
                         showError('Не удалось определить адрес. Попробуйте другое место.');
                         confirmBtn.disabled = true;
                     });
-                });
+                }
+
+                // Определение местоположения пользователя
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        position => {
+                            const userCoords = [position.coords.latitude, position.coords.longitude];
+                            map.setCenter(userCoords);
+                            map.setZoom(15);
+                            placemark.geometry.setCoordinates(userCoords);
+                            updateAddress(userCoords);
+                        },
+                        error => {
+                            console.warn('Geolocation error:', error);
+                        }
+                    );
+                }
 
                 // Кнопка подтверждения
                 confirmBtn.addEventListener("click", () => {
@@ -104,7 +118,6 @@
             }
         }
 
-        // Инициализация карты
         ymaps.ready(init);
     </script>
 </body>
