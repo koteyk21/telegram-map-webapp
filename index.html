@@ -7,9 +7,19 @@
     <script src="https://api-maps.yandex.ru/2.1/?apikey=01b59b25-bd16-4a5e-a739-434e648c9cf4&lang=ru_RU" type="text/javascript"></script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; font-family: Arial, sans-serif; }
-        #map { width: 100%; height: 70%; }
-        #controls { padding: 10px; }
+        body, html { 
+            margin: 0; 
+            padding: 0; 
+            height: 100%; 
+            font-family: Arial, sans-serif; 
+        }
+        #map { 
+            width: 100%; 
+            height: 70%; 
+        }
+        #controls { 
+            padding: 10px; 
+        }
         button { 
             padding: 12px; 
             margin: 5px 0;
@@ -19,6 +29,7 @@
             border-radius: 5px;
             width: 100%;
             font-size: 16px;
+            cursor: pointer;
         }
         #address-display {
             padding: 10px;
@@ -49,6 +60,7 @@
 
     <script>
         // Инициализация WebApp Telegram
+        Telegram.WebApp.ready();
         Telegram.WebApp.expand();
         Telegram.WebApp.MainButton.hide();
 
@@ -70,7 +82,7 @@
             try {
                 // Создаем карту
                 map = new ymaps.Map("map", {
-                    center: [55.75, 37.62], // Москва по умолчанию
+                    center: [53.195873, 45.018803], // Центр по умолчанию (Пенза)
                     zoom: 12
                 });
 
@@ -78,7 +90,8 @@
                 const searchControl = new ymaps.control.SearchControl({
                     options: {
                         provider: 'yandex#search',
-                        noPlacemark: true
+                        noPlacemark: true,
+                        size: 'large'
                     }
                 });
                 map.controls.add(searchControl);
@@ -90,15 +103,11 @@
                     updateSelection(geoObject);
                 });
 
-                // Создаем перемещаемую метку с улучшенной видимостью
+                // Создаем перемещаемую метку
                 placemark = new ymaps.Placemark(map.getCenter(), {}, {
                     draggable: true,
                     preset: 'islands#blueDotIcon',
-                    iconColor: '#0088cc',
-                    iconLayout: 'default#imageWithContent',
-                    iconImageHref: 'https://yastatic.net/s3/mapsapi-ru/static/2.1.0/images/icon.png',
-                    iconImageSize: [32, 32],
-                    iconImageOffset: [-16, -32]
+                    iconColor: '#0088cc'
                 });
                 map.geoObjects.add(placemark);
 
@@ -180,39 +189,38 @@
             addressDisplay.textContent = "Адрес не определен";
         }
 
-        // Обработчик кнопки подтверждения - ГАРАНТИРОВАННАЯ ПЕРЕДАЧА АДРЕСА
+        // Обработчик кнопки подтверждения
         confirmBtn.addEventListener('click', function() {
             if (!selectedAddress || !selectedCoords) {
-                alert("Пожалуйста, выберите место на карте");
+                showError("Пожалуйста, выберите место на карте");
                 return;
             }
 
-            // Формируем надежный объект данных
+            // Формируем объект данных для отправки
             const response = {
-                webapp_data: {
-                    address: selectedAddress,
-                    latitude: selectedCoords[0],
-                    longitude: selectedCoords[1],
-                    timestamp: new Date().getTime()
-                }
+                address: selectedAddress,
+                latitude: selectedCoords[0],
+                longitude: selectedCoords[1],
+                timestamp: new Date().toISOString()
             };
 
-            console.log("Отправка данных в бота:", response);
-
+            console.log("Отправка данных:", response);
+            
             try {
                 Telegram.WebApp.sendData(JSON.stringify(response));
                 Telegram.WebApp.close();
             } catch (e) {
                 console.error("Ошибка отправки данных:", e);
-                alert("Ошибка отправки данных. Пожалуйста, попробуйте снова.");
+                showError("Ошибка отправки данных. Пожалуйста, попробуйте снова.");
             }
         });
 
         // Обработчик кнопки ручного ввода
         manualBtn.addEventListener('click', function() {
-            Telegram.WebApp.sendData(JSON.stringify({
+            const response = {
                 manual_input: true
-            }));
+            };
+            Telegram.WebApp.sendData(JSON.stringify(response));
             Telegram.WebApp.close();
         });
     </script>
