@@ -174,15 +174,20 @@
         }
 
         // Кнопка подтверждения
-        confirmBtn.addEventListener('click', function() {
-            if (selectedAddress && selectedCoords) {
-                Telegram.WebApp.sendData(JSON.stringify({
-                    address: selectedAddress,
-                    coords: selectedCoords
-                }));
-                Telegram.WebApp.close();
-            }
-        });
+    confirmBtn.addEventListener('click', function() {
+    if (selectedAddress && selectedCoords) {
+        const response = {
+            address: selectedAddress,
+            coords: selectedCoords,
+            timestamp: new Date().getTime()
+        };
+        console.log("Sending data:", response); // Для отладки
+        Telegram.WebApp.sendData(JSON.stringify(response));
+        Telegram.WebApp.close();
+    } else {
+        alert("Пожалуйста, выберите адрес на карте");
+    }
+});
 
         // Кнопка ручного ввода
         manualBtn.addEventListener('click', function() {
