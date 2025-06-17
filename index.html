@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Выбор адреса</title>
+    <script src="https://api-maps.yandex.ru/2.1/?apikey=ВАШ_API_КЛЮЧ&lang=ru_RU" type="text/javascript"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; }
+        #map { width: 100%; height: 80%; }
+        button { padding: 10px; margin: 10px; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <button id="confirm-btn">✅ Выбрать этот адрес</button>
+
+    <script>
+        // Инициализация карты
+        ymaps.ready(init);
+
+        let selectedAddress = "";
+        let selectedCoords = null;
+
+        function init() {
+            const map = new ymaps.Map("map", {
+                center: [55.76, 37.64], // Москва по умолчанию
+                zoom: 12
+            });
+
+            // Поиск по карте
+            const searchControl = new ymaps.control.SearchControl({
+                options: { provider: 'yandex#search' }
+            });
+            map.controls.add(searchControl);
+
+            // Обработка выбора места
+            map.events.add('click', function (e) {
+                const coords = e.get('coords');
+                selectedCoords = coords;
+
+                // Получаем адрес по координатам
+                ymaps.geocode(coords).then(function (res) {
+                    const firstGeoObject = res.geoObjects.get(0);
+                    selectedAddress = firstGeoObject.getAddressLine();
+                    alert(`Выбрано: ${selectedAddress}`);
+                });
+            });
+
+            // Кнопка подтверждения
+            document.getElementById("confirm-btn").addEventListener("click", () => {
+                if (selectedAddress && selectedCoords) {
+                    // Отправляем данные в бота
+                    Telegram.WebApp.sendData(JSON.stringify({
+                        address: selectedAddress,
+                        coords: selectedCoords
+                    }));
+                    Telegram.WebApp.close();
+                } else {
+                    alert("Выберите место на карте!");
+                }
+            });
+        }
+    </script>
+</body>
+</html>
