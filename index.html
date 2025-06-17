@@ -9,59 +9,103 @@
     <style>
         body, html { margin: 0; padding: 0; height: 100%; }
         #map { width: 100%; height: 80%; }
-        button { padding: 10px; margin: 10px; }
+        button { 
+            padding: 10px; 
+            margin: 10px; 
+            background-color: #0088cc;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            width: calc(100% - 20px);
+        }
+        #error { color: red; padding: 10px; display: none; }
     </style>
 </head>
 <body>
+    <div id="error"></div>
     <div id="map"></div>
-    <button id="confirm-btn">✅ Выбрать этот адрес</button>
+    <button id="confirm-btn">✅ Подтвердить адрес</button>
 
     <script>
-        // Инициализация карты
-        ymaps.ready(init);
+        // Показываем индикатор загрузки
+        Telegram.WebApp.MainButton.showProgress();
+        Telegram.WebApp.expand();
 
         let selectedAddress = "";
         let selectedCoords = null;
+        const errorEl = document.getElementById('error');
+        const confirmBtn = document.getElementById('confirm-btn');
+
+        function showError(message) {
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+            Telegram.WebApp.MainButton.hideProgress();
+        }
 
         function init() {
-            const map = new ymaps.Map("map", {
-                center: [55.76, 37.64], // Москва по умолчанию
-                zoom: 12
-            });
-
-            // Поиск по карте
-            const searchControl = new ymaps.control.SearchControl({
-                options: { provider: 'yandex#search' }
-            });
-            map.controls.add(searchControl);
-
-            // Обработка выбора места
-            map.events.add('click', function (e) {
-                const coords = e.get('coords');
-                selectedCoords = coords;
-
-                // Получаем адрес по координатам
-                ymaps.geocode(coords).then(function (res) {
-                    const firstGeoObject = res.geoObjects.get(0);
-                    selectedAddress = firstGeoObject.getAddressLine();
-                    alert(`Выбрано: ${selectedAddress}`);
+            try {
+                const map = new ymaps.Map("map", {
+                    center: [55.76, 37.64],
+                    zoom: 12
                 });
-            });
 
-            // Кнопка подтверждения
-            document.getElementById("confirm-btn").addEventListener("click", () => {
-                if (selectedAddress && selectedCoords) {
-                    // Отправляем данные в бота
-                    Telegram.WebApp.sendData(JSON.stringify({
-                        address: selectedAddress,
-                        coords: selectedCoords
-                    }));
-                    Telegram.WebApp.close();
-                } else {
-                    alert("Выберите место на карте!");
+                // Поиск по карте
+                const searchControl = new ymaps.control.SearchControl({
+                    options: { provider: 'yandex#search' }
+                });
+                map.controls.add(searchControl);
+
+                // Определение местоположения пользователя
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        position => {
+                            map.setCenter([position.coords.latitude, position.coords.longitude]);
+                            map.setZoom(15);
+                        },
+                        error => {
+                            console.warn('Geolocation error:', error);
+                        }
+                    );
                 }
-            });
+
+                // Обработка выбора места
+                map.events.add('click', function (e) {
+                    const coords = e.get('coords');
+                    selectedCoords = coords;
+
+                    ymaps.geocode(coords).then(function (res) {
+                        const firstGeoObject = res.geoObjects.get(0);
+                        selectedAddress = firstGeoObject.getAddressLine();
+                        errorEl.style.display = 'none';
+                        confirmBtn.disabled = false;
+                    }, error => {
+                        showError('Не удалось определить адрес. Попробуйте другое место.');
+                        confirmBtn.disabled = true;
+                    });
+                });
+
+                // Кнопка подтверждения
+                confirmBtn.addEventListener("click", () => {
+                    if (selectedAddress && selectedCoords) {
+                        Telegram.WebApp.sendData(JSON.stringify({
+                            address: selectedAddress,
+                            coords: selectedCoords
+                        }));
+                        Telegram.WebApp.close();
+                    } else {
+                        showError("Выберите место на карте!");
+                    }
+                });
+
+                Telegram.WebApp.MainButton.hideProgress();
+            } catch (e) {
+                showError('Ошибка загрузки карты. Пожалуйста, попробуйте позже.');
+                console.error(e);
+            }
         }
+
+        // Инициализация карты
+        ymaps.ready(init);
     </script>
 </body>
 </html>
