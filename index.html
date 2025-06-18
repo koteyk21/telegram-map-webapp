@@ -255,6 +255,11 @@
             Telegram.WebApp.sendData(JSON.stringify(response));
             Telegram.WebApp.close();
         });
+        console.log("SENDING DATA TO TELEGRAM:", {
+  lat: lat,
+  lon: lon,
+  address: address
+});
     </script>
 </body>
 </html>
