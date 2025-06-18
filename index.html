@@ -228,11 +228,11 @@
                 return;
             }
 
-            // Формируем данные в ТОЧНОМ формате, который ожидает бот
+            // Формируем данные в формате, который ожидает бот
             const response = {
-                address: selectedAddress,
-                latitude: selectedCoords[0],  // Отдельное поле
-                longitude: selectedCoords[1], // Отдельное поле
+                address: selectedAddress,  // Полный адрес
+                latitude: selectedCoords[0],  // Широта
+                longitude: selectedCoords[1], // Долгота
                 timestamp: Date.now()
             };
 
