@@ -190,30 +190,30 @@
         }
 
         // Обработчик кнопки подтверждения
-        confirmBtn.addEventListener('click', function() {
-            if (!selectedAddress || !selectedCoords) {
-                showError("Пожалуйста, выберите место на карте");
-                return;
-            }
+confirmBtn.addEventListener('click', function() {
+    if (!selectedAddress || !selectedCoords) {
+        showError("Пожалуйста, выберите место на карте");
+        return;
+    }
 
-            // Формируем объект данных для отправки
-            const response = {
-                address: selectedAddress,
-                latitude: selectedCoords[0],
-                longitude: selectedCoords[1],
-                timestamp: new Date().toISOString()
-            };
+    // Формируем объект данных для отправки
+    const response = {
+        address: selectedAddress,
+        coords: selectedCoords, // Массив [latitude, longitude]
+        timestamp: Date.now(),
+        source: "webapp_map_selector"
+    };
 
-            console.log("Отправка данных:", response);
-            
-            try {
-                Telegram.WebApp.sendData(JSON.stringify(response));
-                Telegram.WebApp.close();
-            } catch (e) {
-                console.error("Ошибка отправки данных:", e);
-                showError("Ошибка отправки данных. Пожалуйста, попробуйте снова.");
-            }
-        });
+    console.log("Отправка данных:", response);
+    
+    try {
+        Telegram.WebApp.sendData(JSON.stringify(response));
+        Telegram.WebApp.close();
+    } catch (e) {
+        console.error("Ошибка отправки данных:", e);
+        showError("Ошибка отправки данных. Пожалуйста, попробуйте снова.");
+    }
+});
 
         // Обработчик кнопки ручного ввода
         manualBtn.addEventListener('click', function() {
