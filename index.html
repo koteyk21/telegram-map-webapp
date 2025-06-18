@@ -222,10 +222,24 @@
         }
 
         // Отправка данных в бота
-        function sendDataToBot(data) {
-            console.log('Отправка данных в бота:', data);
+        function sendDataToBot() {
+            if (!selectedAddress || !selectedCoords) {
+                showError("Пожалуйста, выберите место на карте");
+                return;
+            }
+
+            // Формируем данные в ТОЧНОМ формате, который ожидает бот
+            const response = {
+                address: selectedAddress,
+                latitude: selectedCoords[0],  // Отдельное поле
+                longitude: selectedCoords[1], // Отдельное поле
+                timestamp: Date.now()
+            };
+
+            console.log('Отправка данных в бота:', response);
+            
             try {
-                Telegram.WebApp.sendData(JSON.stringify(data));
+                Telegram.WebApp.sendData(JSON.stringify(response));
                 Telegram.WebApp.close();
             } catch (e) {
                 console.error('Ошибка отправки данных:', e);
@@ -234,24 +248,12 @@
         }
 
         // Обработчики кнопок
-        confirmBtn.addEventListener('click', () => {
-            if (!selectedAddress || !selectedCoords) {
-                showError("Пожалуйста, выберите место на карте");
-                return;
-            }
-
-            const response = {
-                address: selectedAddress,
-                coords: selectedCoords,
-                timestamp: Date.now(),
-                source: 'webapp_map_selector'
-            };
-
-            sendDataToBot(response);
-        });
+        confirmBtn.addEventListener('click', sendDataToBot);
 
         manualBtn.addEventListener('click', () => {
-            sendDataToBot({ manual_input: true });
+            const response = { manual_input: true };
+            Telegram.WebApp.sendData(JSON.stringify(response));
+            Telegram.WebApp.close();
         });
     </script>
 </body>
