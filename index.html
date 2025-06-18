@@ -7,42 +7,58 @@
     <script src="https://api-maps.yandex.ru/2.1/?apikey=01b59b25-bd16-4a5e-a739-434e648c9cf4&lang=ru_RU" type="text/javascript"></script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body, html { 
-            margin: 0; 
-            padding: 0; 
-            height: 100%; 
-            font-family: Arial, sans-serif; 
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
         }
-        #map { 
-            width: 100%; 
-            height: 70%; 
+        #map {
+            width: 100%;
+            height: 70vh;
         }
-        #controls { 
-            padding: 10px; 
+        #controls {
+            padding: 15px;
+            box-sizing: border-box;
         }
-        button { 
-            padding: 12px; 
-            margin: 5px 0;
+        .button {
+            padding: 12px;
+            margin: 8px 0;
             background-color: #0088cc;
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 8px;
             width: 100%;
             font-size: 16px;
+            font-weight: bold;
             cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .button:hover {
+            background-color: #0077bb;
+        }
+        .button-secondary {
+            background-color: #f0f0f0;
+            color: #333;
         }
         #address-display {
-            padding: 10px;
-            margin: 10px 0;
+            padding: 12px;
+            margin: 12px 0;
             border: 1px solid #ddd;
-            border-radius: 5px;
+            border-radius: 8px;
             background: #f9f9f9;
-            min-height: 40px;
+            font-size: 14px;
+            min-height: 20px;
         }
         #error {
-            color: red;
-            padding: 10px;
+            color: #d32f2f;
+            padding: 8px;
+            margin: 8px 0;
             display: none;
+            background: #ffebee;
+            border-radius: 4px;
+            font-size: 14px;
         }
         .hidden {
             display: none;
@@ -54,85 +70,82 @@
     <div id="controls">
         <div id="address-display">Выберите место на карте</div>
         <div id="error"></div>
-        <button id="confirm-btn" class="hidden">✅ Подтвердить этот адрес</button>
-        <button id="manual-btn">📝 Ввести адрес вручную</button>
+        <button id="confirm-btn" class="button hidden">✅ Подтвердить адрес</button>
+        <button id="manual-btn" class="button button-secondary">📝 Ввести адрес вручную</button>
     </div>
 
     <script>
-        // Инициализация WebApp Telegram
+        // Инициализация Telegram WebApp
         Telegram.WebApp.ready();
         Telegram.WebApp.expand();
         Telegram.WebApp.MainButton.hide();
 
-        let map;
-        let placemark;
-        let selectedAddress = "";
-        let selectedCoords = null;
-
         // Элементы интерфейса
+        const mapElement = document.getElementById('map');
         const addressDisplay = document.getElementById('address-display');
         const errorEl = document.getElementById('error');
         const confirmBtn = document.getElementById('confirm-btn');
         const manualBtn = document.getElementById('manual-btn');
+
+        // Переменные состояния
+        let map;
+        let placemark;
+        let selectedAddress = "";
+        let selectedCoords = null;
 
         // Инициализация карты
         ymaps.ready(initMap);
 
         function initMap() {
             try {
-                // Создаем карту
+                // Создание карты с улучшенными параметрами
                 map = new ymaps.Map("map", {
-                    center: [53.195873, 45.018803], // Центр по умолчанию (Пенза)
-                    zoom: 12
+                    center: [53.195873, 45.018803], // Центр на Пензу
+                    zoom: 13,
+                    controls: ['zoomControl', 'searchControl']
                 });
 
-                // Добавляем поиск
+                // Настройка поиска
                 const searchControl = new ymaps.control.SearchControl({
                     options: {
                         provider: 'yandex#search',
                         noPlacemark: true,
-                        size: 'large'
+                        size: 'large',
+                        placeholderContent: 'Поиск адреса',
+                        noSuggestPanel: false
                     }
                 });
                 map.controls.add(searchControl);
 
-                // Обработчик выбора результата поиска
-                searchControl.events.add('resultselect', function(e) {
-                    const index = e.get('index');
-                    const geoObject = searchControl.getResultsArray()[index];
-                    updateSelection(geoObject);
-                });
-
-                // Создаем перемещаемую метку
+                // Создание метки с улучшенным дизайном
                 placemark = new ymaps.Placemark(map.getCenter(), {}, {
                     draggable: true,
                     preset: 'islands#blueDotIcon',
-                    iconColor: '#0088cc'
+                    iconColor: '#0088cc',
+                    iconLayout: 'default#imageWithContent',
+                    iconImageSize: [40, 40],
+                    iconImageOffset: [-20, -40]
                 });
                 map.geoObjects.add(placemark);
 
-                // Обновление адреса при перемещении метки
-                placemark.events.add('dragend', function() {
-                    updateAddress(placemark.geometry.getCoordinates());
-                });
+                // Обработчики событий
+                placemark.events.add('dragend', updateFromMarker);
+                map.events.add('click', onMapClick);
+                searchControl.events.add('resultselect', onSearchResult);
 
-                // Обработчик клика по карте
-                map.events.add('click', function(e) {
-                    const coords = e.get('coords');
-                    placemark.geometry.setCoordinates(coords);
-                    updateAddress(coords);
-                });
-
-                // Попробуем определить местоположение пользователя
+                // Попытка определить местоположение пользователя
                 if (navigator.geolocation) {
                     navigator.geolocation.getCurrentPosition(
-                        function(position) {
-                            const userCoords = [position.coords.latitude, position.coords.longitude];
+                        position => {
+                            const userCoords = [
+                                position.coords.latitude,
+                                position.coords.longitude
+                            ];
                             map.setCenter(userCoords, 15);
                             placemark.geometry.setCoordinates(userCoords);
                             updateAddress(userCoords);
                         },
-                        function(error) {
+                        error => {
                             console.log('Geolocation error:', error);
                         }
                     );
@@ -140,13 +153,40 @@
 
             } catch (e) {
                 showError('Ошибка загрузки карты. Пожалуйста, попробуйте позже.');
-                console.error(e);
+                console.error('Map initialization error:', e);
             }
         }
 
-        // Обновление адреса по координатам
+        // Обновление адреса при перемещении метки
+        function updateFromMarker() {
+            updateAddress(placemark.geometry.getCoordinates());
+        }
+
+        // Обработчик клика по карте
+        function onMapClick(e) {
+            const coords = e.get('coords');
+            placemark.geometry.setCoordinates(coords);
+            updateAddress(coords);
+        }
+
+        // Обработчик выбора результата поиска
+        function onSearchResult(e) {
+            const index = e.get('index');
+            const geoObject = map.controls.get('searchControl').getResultsArray()[index];
+            updateSelection(geoObject);
+        }
+
+        // Обновление выбранного адреса
+        function updateSelection(geoObject) {
+            const coords = geoObject.geometry.getCoordinates();
+            placemark.geometry.setCoordinates(coords);
+            map.setCenter(coords, 15);
+            updateAddress(coords);
+        }
+
+        // Получение адреса по координатам
         function updateAddress(coords) {
-            ymaps.geocode(coords, { 
+            ymaps.geocode(coords, {
                 kind: 'house',
                 results: 1
             }).then(function(res) {
@@ -159,12 +199,12 @@
                 selectedAddress = firstGeoObject.getAddressLine();
                 selectedCoords = coords;
                 
-                // Обновляем отображение
+                // Обновление интерфейса
                 addressDisplay.textContent = selectedAddress;
                 confirmBtn.classList.remove('hidden');
                 errorEl.style.display = 'none';
                 
-                // Добавляем подпись к метке
+                // Обновление метки
                 placemark.properties.set('iconCaption', selectedAddress);
                 
             }).catch(function(error) {
@@ -174,54 +214,44 @@
             });
         }
 
-        // Обновление выбора при поиске
-        function updateSelection(geoObject) {
-            const coords = geoObject.geometry.getCoordinates();
-            placemark.geometry.setCoordinates(coords);
-            map.setCenter(coords, 15);
-            updateAddress(coords);
-        }
-
-        // Показать ошибку
+        // Показать сообщение об ошибке
         function showError(message) {
             errorEl.textContent = message;
             errorEl.style.display = 'block';
             addressDisplay.textContent = "Адрес не определен";
         }
 
-        // Обработчик кнопки подтверждения
-confirmBtn.addEventListener('click', function() {
-    if (!selectedAddress || !selectedCoords) {
-        showError("Пожалуйста, выберите место на карте");
-        return;
-    }
+        // Отправка данных в бота
+        function sendDataToBot(data) {
+            console.log('Отправка данных в бота:', data);
+            try {
+                Telegram.WebApp.sendData(JSON.stringify(data));
+                Telegram.WebApp.close();
+            } catch (e) {
+                console.error('Ошибка отправки данных:', e);
+                showError('Ошибка отправки данных. Пожалуйста, попробуйте снова.');
+            }
+        }
 
-    // Формируем объект данных для отправки
-    const response = {
-        address: selectedAddress,
-        coords: selectedCoords, // Массив [latitude, longitude]
-        timestamp: Date.now(),
-        source: "webapp_map_selector"
-    };
+        // Обработчики кнопок
+        confirmBtn.addEventListener('click', () => {
+            if (!selectedAddress || !selectedCoords) {
+                showError("Пожалуйста, выберите место на карте");
+                return;
+            }
 
-    console.log("Отправка данных:", response);
-    
-    try {
-        Telegram.WebApp.sendData(JSON.stringify(response));
-        Telegram.WebApp.close();
-    } catch (e) {
-        console.error("Ошибка отправки данных:", e);
-        showError("Ошибка отправки данных. Пожалуйста, попробуйте снова.");
-    }
-});
-
-        // Обработчик кнопки ручного ввода
-        manualBtn.addEventListener('click', function() {
             const response = {
-                manual_input: true
+                address: selectedAddress,
+                coords: selectedCoords,
+                timestamp: Date.now(),
+                source: 'webapp_map_selector'
             };
-            Telegram.WebApp.sendData(JSON.stringify(response));
-            Telegram.WebApp.close();
+
+            sendDataToBot(response);
+        });
+
+        manualBtn.addEventListener('click', () => {
+            sendDataToBot({ manual_input: true });
         });
     </script>
 </body>
